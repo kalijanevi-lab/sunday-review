@@ -302,9 +302,9 @@ function trendDir(arr,key){
 function getOuraSummary(){
   if(ouraData.status!=='ok') return null;
   const u=(ouraData.uni||[]).slice(-7), v=(ouraData.valmius||[]).slice(-7), a=(ouraData.aktiivisuus||[]).slice(-7);
-  return { avgUniScore:avg(u,'pistemäärä'), avgUniMin:avg(u,'kokonaisaika_min'), avgValmius:avg(v,'pistemäärä'),
+  return { avgUniScore:avg(u,'tehokkuus'), avgUniMin:avg(u,'kokonaisaika_min'), avgValmius:avg(v,'pistemäärä'),
     avgAskeleet:avg(a,'askeleet'), avgAktScore:avg(a,'pistemäärä'),
-    uniTrend:trendDir(u,'pistemäärä'), valmiusTrend:trendDir(v,'pistemäärä'), aktTrend:trendDir(a,'pistemäärä'),
+    uniTrend:trendDir(u,'tehokkuus'), valmiusTrend:trendDir(v,'pistemäärä'), aktTrend:trendDir(a,'pistemäärä'),
     days:u.length, latestDate:u.length?u[u.length-1].paiva:null };
 }
 function trendArrow(tr){ return tr==='up'?'<span class="trend-up">↑</span>':tr==='down'?'<span class="trend-down">↓</span>':'<span class="trend-flat">→</span>'; }
