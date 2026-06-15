@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- saved from url=(0059)file:///C:/Users/jani.lehtonen/Downloads/sunday_review.html -->
-<html lang="fi"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Viikkokatsaus — Jani</title>
 <style>
@@ -62,27 +62,7 @@
 </style>
 </head>
 <body>
-<div class="app" id="app">
-    <div class="lang-toggle"><button class="lang-btn active" onclick="setLang(&#39;fi&#39;)">FI</button><button class="lang-btn " onclick="setLang(&#39;en&#39;)">EN</button></div>
-    <div class="card">
-      <div class="label">Viikkokatsaus</div>
-      <div class="title">Hyvää iltaa, Jani.</div>
-      <div class="subtitle" style="margin-top:0.4rem">Aika sulkea viikko ja asettaa suunta seuraavalle. Noin 10 minuuttia.</div>
-    </div>
-    <div class="oura-card">
-    <div class="oura-header"><span class="oura-title">Oura — 7 vrk keskiarvo</span><span class="oura-status">2026-06-09</span></div>
-    <div class="oura-grid">
-      <div class="oura-stat"><div class="oura-stat-label">Uni</div><div class="oura-stat-value">—</div><div class="oura-stat-sub"><span class="trend-flat">→</span> /100</div></div>
-      <div class="oura-stat"><div class="oura-stat-label">Valmius</div><div class="oura-stat-value">76</div><div class="oura-stat-sub"><span class="trend-flat">→</span> /100</div></div>
-      <div class="oura-stat"><div class="oura-stat-label">Askeleet</div><div class="oura-stat-value">8.7k</div><div class="oura-stat-sub"><span class="trend-flat">→</span> avg</div></div>
-    </div>
-  </div>
-    <div class="card">
-      <button class="btn btn-primary" onclick="start(&#39;weekly&#39;)">↻ Viikkokatsaus</button>
-      <button class="btn" style="margin-bottom:0" onclick="start(&#39;monthly&#39;)">⊞ Kuukausikatsaus <span style="font-size:12px;color:#888">(sisältää viikkokatsauksen)</span></button>
-      
-    </div>
-    <div class="info-box">Katsauksen jälkeen kopioi generoitu prompti ja liitä se Claudeen analyysia varten.</div></div>
+<div class="app" id="app"></div>
 <script>
 
 // ── Gist ─────────────────────────────────────────────────────────────
@@ -122,7 +102,7 @@ const T = {
     copyBtn: 'Kopioi prompti',
     copiedMsg: '✓ Kopioitu leikepöydälle — liitä Claudeen',
     resetBtn: 'Aloita alusta',
-    ouraHintPrefix: 'Oura (7 vrk ka):',
+    familyNotesPlaceholder: 'Haluatko kertoa lisää perheestä tällä viikolla? (valinnainen)',
     ouraHintSuffix: 'Proteiini seurattu? Painon suunta?',
     ouraHintFallback: 'Treenit tehty? Proteiini seurattu? Uni? Painon suunta?',
     domainNames: { health:'Terveys', family:'Perhe', work:'Työ', finances:'Talous' },
@@ -181,7 +161,7 @@ const T = {
     copyBtn: 'Copy prompt',
     copiedMsg: '✓ Copied to clipboard — paste into Claude',
     resetBtn: 'Start over',
-    ouraHintPrefix: 'Oura (7-day avg):',
+    familyNotesPlaceholder: 'Anything else about family this week? (optional)',
     ouraHintSuffix: 'Protein tracked? Weight direction?',
     ouraHintFallback: 'Training sessions done? Protein tracked? Sleep? Weight direction?',
     domainNames: { health:'Health', family:'Family', work:'Work', finances:'Finances' },
@@ -217,7 +197,7 @@ const WQ = {
     { id:"completed", text:"Mitä sait oikeasti valmiiksi tai edistettyä merkittävästi tällä viikolla?", hint:"Ole tarkka. Ei mitä teit — mitä oikeasti eteni.", type:"text" },
     { id:"three_rule", text:"Noudatitko 3 projektin sääntöä tällä viikolla?", hint:"Oliko millään hetkellä enemmän kuin 3 aktiivista projektia? Ole rehellinen.", type:"yn" },
     { id:"health", text:"Miten terveys kehittyi tällä viikolla?", hint:"", type:"text", oura:true },
-    { id:"family", text:"Olitko oikeasti läsnä perheellesi — vai vain fyysisesti paikalla?", hint:"Ajattele ruokailuja, iltoja, viikonlopun hetkiä. Laatu, ei tunnit.", type:"yn" },
+    { id:"family", text:"Olitko oikeasti läsnä perheellesi — vai vain fyysisesti paikalla?", hint:"Ajattele ruokailuja, iltoja, viikonlopun hetkiä. Laatu, ei tunnit.", type:"yn", familyNotes:true },
     { id:"time_waste", text:"Mikä oli suurin ajanhukkasi tällä viikolla?", hint:"Yksi rehellinen vastaus. Ei pehmentämistä.", type:"text" },
     { id:"one_thing", text:"Mikä on se yksi asia, joka täytyy tapahtua ensi viikolla?", hint:"Yksi asia. Jos et tee mitään muuta, tämä tulee tehdyksi.", type:"text" },
     { id:"week_score", text:"Arvioi viikko kokonaisuutena.", hint:"1 = katastrofi, 10 = kaikki kohdillaan. Ole rehellinen, älä antelias.", type:"score" }
@@ -226,7 +206,7 @@ const WQ = {
     { id:"completed", text:"What did you actually complete or move forward meaningfully this week?", hint:"Be specific. Not what you worked on — what actually moved.", type:"text" },
     { id:"three_rule", text:"Did you respect the 3-project rule this week?", hint:"Were there more than 3 active projects at any point? Be honest.", type:"yn" },
     { id:"health", text:"How is health trending this week?", hint:"", type:"text", oura:true },
-    { id:"family", text:"Were you genuinely present with your family — or just physically there?", hint:"Think meals, evenings, weekend moments. Quality, not hours.", type:"yn" },
+    { id:"family", text:"Were you genuinely present with your family — or just physically there?", hint:"Think meals, evenings, weekend moments. Quality, not hours.", type:"yn", familyNotes:true },
     { id:"time_waste", text:"What was the biggest waste of time this week?", hint:"One honest answer. No softening.", type:"text" },
     { id:"one_thing", text:"What is the single most important thing that must happen next week?", hint:"One thing. If you do nothing else, this gets done.", type:"text" },
     { id:"week_score", text:"Score the week overall.", hint:"1 = disaster, 10 = everything aligned. Be honest, not generous.", type:"score" }
@@ -302,9 +282,9 @@ function trendDir(arr,key){
 function getOuraSummary(){
   if(ouraData.status!=='ok') return null;
   const u=(ouraData.uni||[]).slice(-7), v=(ouraData.valmius||[]).slice(-7), a=(ouraData.aktiivisuus||[]).slice(-7);
-  return { avgUniScore:avg(u,'tehokkuus'), avgUniMin:avg(u,'kokonaisaika_min'), avgValmius:avg(v,'pistemäärä'),
+  return { avgUniScore:avg(u,'pistemäärä'), avgUniMin:avg(u,'kokonaisaika_min'), avgValmius:avg(v,'pistemäärä'),
     avgAskeleet:avg(a,'askeleet'), avgAktScore:avg(a,'pistemäärä'),
-    uniTrend:trendDir(u,'tehokkuus'), valmiusTrend:trendDir(v,'pistemäärä'), aktTrend:trendDir(a,'pistemäärä'),
+    uniTrend:trendDir(u,'pistemäärä'), valmiusTrend:trendDir(v,'pistemäärä'), aktTrend:trendDir(a,'pistemäärä'),
     days:u.length, latestDate:u.length?u[u.length-1].paiva:null };
 }
 function trendArrow(tr){ return tr==='up'?'<span class="trend-up">↑</span>':tr==='down'?'<span class="trend-down">↓</span>':'<span class="trend-flat">→</span>'; }
@@ -400,6 +380,9 @@ function renderQ(){
     input=`<div class="score-row">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button class="score-btn ${answers[q.id]==n?'selected':''}" onclick="pick(${n},'${q.id}')">${n}</button>`).join('')}</div>`;
   } else {
     input=`<div class="score-row">${tx.ynOptions.map(v=>`<button class="score-btn ${answers[q.id]===v?'selected':''}" onclick="pick('${v}','${q.id}')">${v}</button>`).join('')}</div>`;
+    if(q.familyNotes){
+      input+=`<textarea id="family-notes" placeholder="${tx.familyNotesPlaceholder}" style="margin-top:0.75rem;min-height:80px;">${answers['family_notes']||''}</textarea>`;
+    }
   }
   const isLast=step===total-1;
   const hasAnswer=answers[q.id]!==undefined&&answers[q.id]!=='';
@@ -427,7 +410,13 @@ function pick(val,id){answers[id]=val;render();}
 function next(){
   const q=questions[step];
   if(q.type==='text'){const v=getTextValue();if(!v)return;answers[q.id]=v;}
-  else{if(!answers[q.id])return;}
+  else{
+    if(!answers[q.id])return;
+    if(q.familyNotes){
+      const fn=document.getElementById('family-notes');
+      if(fn) answers['family_notes']=fn.value.trim();
+    }
+  }
   step++;render();
 }
 function back(){if(step>0){step--;render();}}
@@ -444,7 +433,7 @@ function buildPrompt(){
   const pi=tx.promptItems;
   const items=[
     {q:pi.completed,a:answers['completed']},{q:pi.three_rule,a:answers['three_rule']},
-    {q:pi.health,a:answers['health']},{q:pi.family,a:answers['family']},
+    {q:pi.health,a:answers['health']},{q:pi.family,a:answers['family']+(answers['family_notes']?'\n'+answers['family_notes']:'')},
     {q:pi.time_waste,a:answers['time_waste']},{q:pi.one_thing,a:answers['one_thing']},
     ...(isM?[{q:pi.best_decision,a:answers['best_decision']},{q:pi.broken_rule,a:answers['broken_rule']},{q:pi.projects_ok,a:answers['projects_ok']},{q:pi.month_intention,a:answers['month_intention']}]:[])
   ];
@@ -463,7 +452,7 @@ function renderSummary(){
   const si=tx.summaryItems;
   const items=[
     {q:si.completed,a:answers['completed']},{q:si.three_rule,a:answers['three_rule']},
-    {q:si.health,a:answers['health']},{q:si.family,a:answers['family']},
+    {q:si.health,a:answers['health']},{q:si.family,a:(answers['family']||'—')+(answers['family_notes']?' — '+answers['family_notes']:'')},
     {q:si.time_waste,a:answers['time_waste']},{q:si.one_thing,a:answers['one_thing']},
     ...(isM?[{q:si.best_decision,a:answers['best_decision']},{q:si.broken_rule,a:answers['broken_rule']},{q:si.projects_ok,a:answers['projects_ok']},{q:si.month_intention,a:answers['month_intention']}]:[])
   ];
@@ -503,6 +492,5 @@ function reset(){mode=null;step=0;answers={};questions=[];builtPrompt='';render(
 render();
 fetchGistData();
 </script>
-
-
-</body></html>
+</body>
+</html>
