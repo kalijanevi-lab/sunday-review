@@ -31,6 +31,8 @@
   .score-btn.selected { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
   textarea { width: 100%; border: 1.5px solid #ddd; border-radius: 12px; padding: 0.85rem; font-size: 16px; font-family: inherit; color: #1a1a1a; background: #fff; resize: none; line-height: 1.6; min-height: 110px; -webkit-appearance: none; display: block; }
   textarea:focus { outline: none; border-color: #1a1a1a; }
+  .optional-textarea { min-height: 80px; margin-top: 0.75rem; }
+  .optional-label { font-size: 12px; color: #999; margin-top: 0.75rem; margin-bottom: 0.35rem; }
   .summary-item { padding: 0.65rem 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; line-height: 1.5; }
   .summary-item:last-child { border-bottom: none; }
   .summary-q { font-size: 11px; color: #999; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -59,6 +61,24 @@
   .lang-toggle { display: flex; gap: 6px; justify-content: flex-end; margin-bottom: 0.75rem; }
   .lang-btn { font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 99px; border: 1.5px solid #ddd; background: #fff; color: #888; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .lang-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  /* 30-day list */
+  .list-card { background: #fff8f0; border: 1px solid #ffd8a8; border-radius: 16px; padding: 1.25rem; margin-bottom: 1rem; }
+  .list-title { font-size: 13px; font-weight: 600; color: #e67700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+  .list-item { display: flex; align-items: center; gap: 10px; padding: 0.6rem 0; border-bottom: 1px solid #f5e6d0; font-size: 14px; }
+  .list-item:last-child { border-bottom: none; }
+  .list-item-name { flex: 1; }
+  .list-item-days { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
+  .days-ready { background: #e3f9e5; color: #1a7f37; }
+  .days-wait { background: #fff3e0; color: #e67700; }
+  .list-item-remove { font-size: 18px; color: #ccc; cursor: pointer; padding: 4px; line-height: 1; }
+  .list-add-row { display: flex; gap: 8px; margin-top: 0.75rem; }
+  .list-input { flex: 1; border: 1.5px solid #ddd; border-radius: 10px; padding: 0.6rem 0.85rem; font-size: 15px; font-family: inherit; }
+  .list-input:focus { outline: none; border-color: #e67700; }
+  .list-add-btn { padding: 0.6rem 1rem; border-radius: 10px; border: none; background: #e67700; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .list-empty { font-size: 13px; color: #bbb; text-align: center; padding: 1rem 0; font-style: italic; }
+  .list-review-card { background: #fff3e0; border: 1px solid #ffd8a8; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+  .list-review-title { font-size: 12px; font-weight: 600; color: #e67700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+  .list-review-item { font-size: 13px; padding: 3px 0; }
 </style>
 </head>
 <body>
@@ -68,6 +88,31 @@
 // ── Gist ─────────────────────────────────────────────────────────────
 const GIST_BASE = 'https://gist.githubusercontent.com/kalijanevi-lab/fbe4015c3e88f84b9f10baa706102651/raw/';
 const GIST_FILES = { uni: GIST_BASE+'uni.csv', valmius: GIST_BASE+'valmius.csv', aktiivisuus: GIST_BASE+'aktiivisuus.csv' };
+
+// ── 30-day list storage ───────────────────────────────────────────────
+function loadList() {
+  try { return JSON.parse(localStorage.getItem('wishlist_30') || '[]'); } catch(e) { return []; }
+}
+function saveList(items) {
+  try { localStorage.setItem('wishlist_30', JSON.stringify(items)); } catch(e) {}
+}
+function getDaysOld(dateStr) {
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+}
+function addListItem(name) {
+  if (!name.trim()) return;
+  const items = loadList();
+  items.push({ name: name.trim(), date: new Date().toISOString().slice(0,10) });
+  saveList(items);
+}
+function removeListItem(idx) {
+  const items = loadList();
+  items.splice(idx, 1);
+  saveList(items);
+}
+function getReadyItems() {
+  return loadList().filter(i => getDaysOld(i.date) >= 30);
+}
 
 // ── Translations ──────────────────────────────────────────────────────
 const T = {
@@ -79,6 +124,7 @@ const T = {
     btnWeekly: '↻ Viikkokatsaus',
     btnMonthly: '⊞ Kuukausikatsaus',
     btnMonthlyNote: '(sisältää viikkokatsauksen)',
+    btnList: '🛒 30 päivän lista',
     lastSundayNote: '✓ Kuukauden viimeinen sunnuntai — kuukausikatsaus suositeltava.',
     infoBox: 'Katsauksen jälkeen kopioi generoitu prompti ja liitä se Claudeen analyysia varten.',
     ouraTitle: 'Oura viikkodata',
@@ -102,7 +148,9 @@ const T = {
     copyBtn: 'Kopioi prompti',
     copiedMsg: '✓ Kopioitu leikepöydälle — liitä Claudeen',
     resetBtn: 'Aloita alusta',
-    familyNotesPlaceholder: 'Haluatko kertoa lisää perheestä tällä viikolla? (valinnainen)',
+    familyNotesPlaceholder: 'Haluatko kertoa lisää perheestä? (valinnainen)',
+    optionalNotesPlaceholder: 'Milloin ja miksi? (valinnainen)',
+    ouraHintPrefix: 'Oura (7 vrk ka):',
     ouraHintSuffix: 'Proteiini seurattu? Painon suunta?',
     ouraHintFallback: 'Treenit tehty? Proteiini seurattu? Uni? Painon suunta?',
     domainNames: { health:'Terveys', family:'Perhe', work:'Työ', finances:'Talous' },
@@ -112,22 +160,35 @@ const T = {
     promptOuraHeader: 'OURA DATA (automaattinen):',
     promptItems: {
       completed: 'Saavutettu tällä viikolla',
-      three_rule: '3 projektin sääntö noudatettu',
+      focus: 'Kontekstin vaihto kesken tehtävän',
       health: 'Terveys tällä viikolla',
       family: 'Läsnäolo perheelle',
-      time_waste: 'Suurin ajanhukkaa',
+      energy: 'Energiatila tällä viikolla',
+      shopping: '30 päivän lista — tarkistus',
       one_thing: 'Yksi asia ensi viikolla',
       best_decision: 'Paras päätös tänä kuuna',
       broken_rule: 'Useimmin rikottu sääntö',
+      impact: 'Vaikutus muihin tällä kuulla',
+      learning: 'Oppiminen tällä kuulla',
       projects_ok: 'Projektit edelleen oikeat?',
       month_intention: 'Ensi kuun yksi asia'
     },
     summaryItems: {
-      completed:'Saavutettu', three_rule:'3 projektin sääntö', health:'Terveys',
-      family:'Läsnäolo perheelle', time_waste:'Ajanhukkaa', one_thing:'Yksi asia ensi viikolla',
-      best_decision:'Paras päätös', broken_rule:'Useimmin rikottu sääntö',
-      projects_ok:'Projektit oikeat?', month_intention:'Ensi kuun asia'
+      completed:'Saavutettu', focus:'Kontekstin vaihto', health:'Terveys',
+      family:'Läsnäolo perheelle', energy:'Energiatila', shopping:'30 pv lista',
+      one_thing:'Yksi asia ensi viikolla', best_decision:'Paras päätös',
+      broken_rule:'Useimmin rikottu sääntö', impact:'Vaikutus muihin',
+      learning:'Oppiminen', projects_ok:'Projektit oikeat?', month_intention:'Ensi kuun asia'
     },
+    listTitle: '30 päivän ostoslista',
+    listEmpty: 'Lista on tyhjä — lisää ostoimpulssit tänne ennen ostamista.',
+    listAddPlaceholder: 'Mitä halusit ostaa?',
+    listAddBtn: 'Lisää',
+    listDaysReady: (d) => `${d} pv — voit ostaa!`,
+    listDaysWait: (d) => `${d}/30 pv`,
+    listReviewTitle: 'Lista tarkistettavana',
+    listReviewReady: (n) => `${n} tuotetta on odottanut yli 30 päivää. Haluatko ne vielä?`,
+    listBackBtn: '← Takaisin',
     promptInstructions: `---\nOle hyvä ja:\n1. Tiivistä keskeiset teemat 2-3 lauseessa.\n2. Tunnista 1-2 aitoa katvealuetta tai riskiä näissä vastauksissa.\n3. Anna yksi suora, konkreettinen suositus tulevalle viikolle.\n4. Liputa asiat, jotka ovat ristiriidassa todettujen prioriteettien tai käyttöjärjestelmän sääntöjen kanssa.\n5. Kommentoi vastaako Oura-data itse-raportoitua terveysvastauksia vai onko ristiriita.\nOle suora. Älä pehmentele tai kannusta yleisesti.`
   },
   en: {
@@ -138,6 +199,7 @@ const T = {
     btnWeekly: '↻ Weekly review',
     btnMonthly: '⊞ Monthly review',
     btnMonthlyNote: '(includes weekly)',
+    btnList: '🛒 30-day list',
     lastSundayNote: '✓ Last Sunday of the month — monthly review recommended.',
     infoBox: 'After completing the review, copy the generated prompt and paste it into Claude for analysis and feedback.',
     ouraTitle: 'Oura weekly data',
@@ -162,6 +224,8 @@ const T = {
     copiedMsg: '✓ Copied to clipboard — paste into Claude',
     resetBtn: 'Start over',
     familyNotesPlaceholder: 'Anything else about family this week? (optional)',
+    optionalNotesPlaceholder: 'When and why? (optional)',
+    ouraHintPrefix: 'Oura (7-day avg):',
     ouraHintSuffix: 'Protein tracked? Weight direction?',
     ouraHintFallback: 'Training sessions done? Protein tracked? Sleep? Weight direction?',
     domainNames: { health:'Health', family:'Family', work:'Work', finances:'Finances' },
@@ -171,22 +235,35 @@ const T = {
     promptOuraHeader: 'OURA DATA (automatic):',
     promptItems: {
       completed: 'Completed this week',
-      three_rule: '3-project rule respected',
+      focus: 'Context-switching mid-task',
       health: 'Health this week',
       family: 'Family presence',
-      time_waste: 'Biggest time waste',
+      energy: 'Energy levels this week',
+      shopping: '30-day list — review',
       one_thing: 'One thing next week',
       best_decision: 'Best decision this month',
       broken_rule: 'Rule broken most often',
+      impact: 'Impact on others this month',
+      learning: 'Learning this month',
       projects_ok: 'Active projects still right?',
       month_intention: "Next month's one thing"
     },
     summaryItems: {
-      completed:'Completed', three_rule:'3-project rule', health:'Health',
-      family:'Family presence', time_waste:'Time waste', one_thing:'One thing next week',
-      best_decision:'Best decision', broken_rule:'Rule broken most',
-      projects_ok:'Projects still right?', month_intention:"Next month's thing"
+      completed:'Completed', focus:'Context-switching', health:'Health',
+      family:'Family presence', energy:'Energy levels', shopping:'30-day list',
+      one_thing:'One thing next week', best_decision:'Best decision',
+      broken_rule:'Rule broken most', impact:'Impact on others',
+      learning:'Learning', projects_ok:'Projects still right?', month_intention:"Next month's thing"
     },
+    listTitle: '30-day purchase list',
+    listEmpty: 'List is empty — add impulse purchases here before buying.',
+    listAddPlaceholder: 'What did you want to buy?',
+    listAddBtn: 'Add',
+    listDaysReady: (d) => `${d} days — ready to buy!`,
+    listDaysWait: (d) => `${d}/30 days`,
+    listReviewTitle: 'List under review',
+    listReviewReady: (n) => `${n} item(s) have been waiting over 30 days. Do you still want them?`,
+    listBackBtn: '← Back',
     promptInstructions: `---\nPlease:\n1. Summarise the key themes in 2-3 sentences.\n2. Identify 1-2 genuine blind spots or risks in these answers.\n3. Give one direct, specific recommendation for the coming week.\n4. Flag anything that contradicts my stated priorities or operating system rules.\n5. Comment on whether the Oura data aligns with or contradicts the self-reported health answer.\nBe direct. Do not soften or encourage generically.`
   }
 };
@@ -194,103 +271,99 @@ const T = {
 // ── Questions ─────────────────────────────────────────────────────────
 const WQ = {
   fi: [
-    { id:"completed", text:"Mitä sait oikeasti valmiiksi tai edistettyä merkittävästi tällä viikolla?", hint:"Ole tarkka. Ei mitä teit — mitä oikeasti eteni.", type:"text" },
-    { id:"three_rule", text:"Noudatitko 3 projektin sääntöä tällä viikolla?", hint:"Oliko millään hetkellä enemmän kuin 3 aktiivista projektia? Ole rehellinen.", type:"yn" },
-    { id:"health", text:"Miten terveys kehittyi tällä viikolla?", hint:"", type:"text", oura:true },
-    { id:"family", text:"Olitko oikeasti läsnä perheellesi — vai vain fyysisesti paikalla?", hint:"Ajattele ruokailuja, iltoja, viikonlopun hetkiä. Laatu, ei tunnit.", type:"yn", familyNotes:true },
-    { id:"time_waste", text:"Mikä oli suurin ajanhukkasi tällä viikolla?", hint:"Yksi rehellinen vastaus. Ei pehmentämistä.", type:"text" },
-    { id:"one_thing", text:"Mikä on se yksi asia, joka täytyy tapahtua ensi viikolla?", hint:"Yksi asia. Jos et tee mitään muuta, tämä tulee tehdyksi.", type:"text" },
-    { id:"week_score", text:"Arvioi viikko kokonaisuutena.", hint:"1 = katastrofi, 10 = kaikki kohdillaan. Ole rehellinen, älä antelias.", type:"score" }
+    { id:'completed', text:'Mitä sait oikeasti valmiiksi tai edistettyä merkittävästi tällä viikolla?', hint:'Ole tarkka. Ei mitä teit — mitä oikeasti eteni.', type:'text' },
+    { id:'focus', text:'Jäitkö kiinni kontekstin vaihtamisesta kesken tehtävän tällä viikolla?', hint:'Hyppäsitkö asiasta toiseen ennen kuin edellinen oli valmis tai tietoisesti parkattu?', type:'yntext' },
+    { id:'health', text:'Miten terveys kehittyi tällä viikolla?', hint:'', type:'text', oura:true },
+    { id:'family', text:'Olitko oikeasti läsnä perheellesi — vai vain fyysisesti paikalla?', hint:'Ajattele ruokailuja, iltoja, viikonlopun hetkiä. Laatu, ei tunnit.', type:'yn', familyNotes:true },
+    { id:'energy', text:'Mikä oli energiatilasi viikon aikana — ja mikä selittää sen?', hint:'Subjektiivinen kokemus, ei vain Oura-data. Mikä nosti tai laski energiaa?', type:'text' },
+    { id:'shopping', text:'Onko 30 päivän listallasi jotain jonka harkinta-aika on umpeutunut?', hint:'', type:'shopping' },
+    { id:'one_thing', text:'Mikä on se yksi asia, joka täytyy tapahtua ensi viikolla?', hint:'Yksi asia. Jos et tee mitään muuta, tämä tulee tehdyksi.', type:'text' },
+    { id:'week_score', text:'Arvioi viikko kokonaisuutena.', hint:'1 = katastrofi, 10 = kaikki kohdillaan. Ole rehellinen, älä antelias.', type:'score' }
   ],
   en: [
-    { id:"completed", text:"What did you actually complete or move forward meaningfully this week?", hint:"Be specific. Not what you worked on — what actually moved.", type:"text" },
-    { id:"three_rule", text:"Did you respect the 3-project rule this week?", hint:"Were there more than 3 active projects at any point? Be honest.", type:"yn" },
-    { id:"health", text:"How is health trending this week?", hint:"", type:"text", oura:true },
-    { id:"family", text:"Were you genuinely present with your family — or just physically there?", hint:"Think meals, evenings, weekend moments. Quality, not hours.", type:"yn", familyNotes:true },
-    { id:"time_waste", text:"What was the biggest waste of time this week?", hint:"One honest answer. No softening.", type:"text" },
-    { id:"one_thing", text:"What is the single most important thing that must happen next week?", hint:"One thing. If you do nothing else, this gets done.", type:"text" },
-    { id:"week_score", text:"Score the week overall.", hint:"1 = disaster, 10 = everything aligned. Be honest, not generous.", type:"score" }
+    { id:'completed', text:'What did you actually complete or move forward meaningfully this week?', hint:'Be specific. Not what you worked on — what actually moved.', type:'text' },
+    { id:'focus', text:'Did you catch yourself context-switching mid-task this week?', hint:'Did you jump to something else before the current task was done or consciously parked?', type:'yntext' },
+    { id:'health', text:'How is health trending this week?', hint:'', type:'text', oura:true },
+    { id:'family', text:'Were you genuinely present with your family — or just physically there?', hint:'Think meals, evenings, weekend moments. Quality, not hours.', type:'yn', familyNotes:true },
+    { id:'energy', text:'What were your energy levels like this week — and what explains it?', hint:'Subjective experience, not just Oura data. What raised or lowered your energy?', type:'text' },
+    { id:'shopping', text:'Does your 30-day list have anything that has passed the waiting period?', hint:'', type:'shopping' },
+    { id:'one_thing', text:'What is the single most important thing that must happen next week?', hint:'One thing. If you do nothing else, this gets done.', type:'text' },
+    { id:'week_score', text:'Score the week overall.', hint:'1 = disaster, 10 = everything aligned. Be honest, not generous.', type:'score' }
   ]
 };
 
 const MQ = {
   fi: [
-    { id:"d_health", text:"Arvioi Terveys-alueesi tältä kuulta.", hint:"Painotrendi, treeniaktiivisuus, energia, uni. 1–10.", type:"score", domain:"Terveys", color:"#3b6d11" },
-    { id:"d_family", text:"Arvioi Perhe-alueesi tältä kuulta.", hint:"Läsnäolon laatu, pidetyt lupaukset, parisuhde. 1–10.", type:"score", domain:"Perhe", color:"#854f0b" },
-    { id:"d_work", text:"Arvioi Työ-alueesi tältä kuulta.", hint:"Projektit aikataulussa, AI champion -edistys, asiakasluottamus. 1–10.", type:"score", domain:"Työ", color:"#185fa5" },
-    { id:"d_finances", text:"Arvioi Talous-alueesi tältä kuulta.", hint:"30 vrk sääntö noudatettu, ei impulsiivisia päätöksiä, kulut hallinnassa. 1–10.", type:"score", domain:"Talous", color:"#0f6e56" },
-    { id:"best_decision", text:"Mikä oli paras päätöksesi tänä kuuna?", hint:"Yksi asia. Miksi se oli hyvä?", type:"text" },
-    { id:"broken_rule", text:"Mitä käyttöjärjestelmän sääntöä rikoit useimmin?", hint:"Pitääkö korjata käyttäytymistä — vai sääntöä?", type:"text" },
-    { id:"projects_ok", text:"Ovatko kolme aktiivista projektiasi edelleen oikeat kolme?", hint:"Pitäisikö jokin pudottaa, siirtää tai korvata?", type:"text" },
-    { id:"month_intention", text:"Mikä on se yksi asia, joka tekee ensi kuusta onnistuneen?", hint:"Konkreettinen ja mitattava.", type:"text" }
+    { id:'d_health', text:'Arvioi Terveys-alueesi tältä kuulta.', hint:'Painotrendi, treeniaktiivisuus, energia, uni. 1–10.', type:'score', domain:'Terveys', color:'#3b6d11' },
+    { id:'d_family', text:'Arvioi Perhe-alueesi tältä kuulta.', hint:'Läsnäolon laatu, pidetyt lupaukset, parisuhde. 1–10.', type:'score', domain:'Perhe', color:'#854f0b' },
+    { id:'d_work', text:'Arvioi Työ-alueesi tältä kuulta.', hint:'Projektit aikataulussa, AI champion -edistys, asiakasluottamus. 1–10.', type:'score', domain:'Työ', color:'#185fa5' },
+    { id:'d_finances', text:'Arvioi Talous-alueesi tältä kuulta.', hint:'Ei impulsiivisia ostoksia, kulut hallinnassa, sijoitukset linjassa strategian kanssa. 1–10.', type:'score', domain:'Talous', color:'#0f6e56' },
+    { id:'best_decision', text:'Mikä oli paras päätöksesi tänä kuuna?', hint:'Yksi asia. Miksi se oli hyvä?', type:'text' },
+    { id:'impact', text:'Vaikutitko tällä kuulla positiivisesti jonkun muun työssä tai osaamisessa?', hint:'Kolleega, tiimi, AI Champion -rooli. Konkreettinen esimerkki.', type:'text' },
+    { id:'learning', text:'Opitko tällä kuulla jotain uutta jota voisit soveltaa käytännössä?', hint:'Ei teorioita — mitä voit tehdä eri tavalla ensi kuussa tämän ansiosta?', type:'text' },
+    { id:'broken_rule', text:'Mitä käyttöjärjestelmän sääntöä rikoit useimmin?', hint:'Pitääkö korjata käyttäytymistä — vai sääntöä?', type:'text' },
+    { id:'projects_ok', text:'Ovatko aktiiviset projektisi edelleen oikeat?', hint:'Pitäisikö jokin pudottaa, siirtää tai korvata?', type:'text' },
+    { id:'month_intention', text:'Mikä on se yksi asia, joka tekee ensi kuusta onnistuneen?', hint:'Konkreettinen ja mitattava.', type:'text' }
   ],
   en: [
-    { id:"d_health", text:"Rate your Health domain this month.", hint:"Weight trend, training consistency, energy, sleep. 1–10.", type:"score", domain:"Health", color:"#3b6d11" },
-    { id:"d_family", text:"Rate your Family domain this month.", hint:"Presence quality, promises kept, partner connection. 1–10.", type:"score", domain:"Family", color:"#854f0b" },
-    { id:"d_work", text:"Rate your Work domain this month.", hint:"Projects on track, AI champion progress, customer trust. 1–10.", type:"score", domain:"Work", color:"#185fa5" },
-    { id:"d_finances", text:"Rate your Finances domain this month.", hint:"30-day rule followed, no impulsive moves, costs controlled. 1–10.", type:"score", domain:"Finances", color:"#0f6e56" },
-    { id:"best_decision", text:"What was the single best decision you made this month?", hint:"One thing. Why was it good?", type:"text" },
-    { id:"broken_rule", text:"Which operating system rule did you break most often?", hint:"Do you need to fix the behavior — or fix the rule?", type:"text" },
-    { id:"projects_ok", text:"Are your three active projects still the right three?", hint:"Should anything be dropped, postponed, or replaced?", type:"text" },
-    { id:"month_intention", text:"What is the one thing that, if done, makes next month a success?", hint:"Specific and measurable.", type:"text" }
+    { id:'d_health', text:'Rate your Health domain this month.', hint:'Weight trend, training consistency, energy, sleep. 1–10.', type:'score', domain:'Health', color:'#3b6d11' },
+    { id:'d_family', text:'Rate your Family domain this month.', hint:'Presence quality, promises kept, partner connection. 1–10.', type:'score', domain:'Family', color:'#854f0b' },
+    { id:'d_work', text:'Rate your Work domain this month.', hint:'Projects on track, AI champion progress, customer trust. 1–10.', type:'score', domain:'Work', color:'#185fa5' },
+    { id:'d_finances', text:'Rate your Finances domain this month.', hint:'No impulse purchases, costs controlled, investments aligned with strategy. 1–10.', type:'score', domain:'Finances', color:'#0f6e56' },
+    { id:'best_decision', text:'What was the single best decision you made this month?', hint:'One thing. Why was it good?', type:'text' },
+    { id:'impact', text:'Did you positively impact someone else\'s work or skills this month?', hint:'Colleague, team, AI Champion role. Concrete example.', type:'text' },
+    { id:'learning', text:'Did you learn something new this month that you could apply in practice?', hint:'Not theory — what will you do differently next month because of this?', type:'text' },
+    { id:'broken_rule', text:'Which operating system rule did you break most often?', hint:'Do you need to fix the behavior — or fix the rule?', type:'text' },
+    { id:'projects_ok', text:'Are your active projects still the right ones?', hint:'Should anything be dropped, postponed, or replaced?', type:'text' },
+    { id:'month_intention', text:'What is the one thing that, if done, makes next month a success?', hint:'Specific and measurable.', type:'text' }
   ]
 };
 
 // ── State ─────────────────────────────────────────────────────────────
-let lang = 'fi';
-let mode=null, step=0, answers={}, questions=[], builtPrompt='';
-let ouraData = { uni:null, valmius:null, aktiivisuus:null, status:'loading', error:null };
-const app = document.getElementById('app');
-const t = () => T[lang];
+let lang='fi', mode=null, step=0, answers={}, questions=[], builtPrompt='';
+let ouraData={uni:null,valmius:null,aktiivisuus:null,status:'loading',error:null};
+let view='home'; // home | review | list
+const app=document.getElementById('app');
+const t=()=>T[lang];
 
 // ── CSV ───────────────────────────────────────────────────────────────
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',');
-  return lines.slice(1).map(line => {
-    const vals = line.split(','), obj = {};
-    headers.forEach((h,i) => { obj[h.trim()] = vals[i] ? vals[i].trim() : ''; });
-    return obj;
-  });
+function parseCSV(text){
+  const lines=text.trim().split('\n'); if(lines.length<2) return [];
+  const headers=lines[0].split(',');
+  return lines.slice(1).map(line=>{const vals=line.split(','),obj={};headers.forEach((h,i)=>{obj[h.trim()]=vals[i]?vals[i].trim():'';});return obj;});
 }
-
-async function fetchGistData() {
-  try {
-    const cache = '?t=' + Math.floor(Date.now()/60000);
-    const [uR,vR,aR] = await Promise.all([
-      fetch(GIST_FILES.uni+cache), fetch(GIST_FILES.valmius+cache), fetch(GIST_FILES.aktiivisuus+cache)
-    ]);
-    if (!uR.ok||!vR.ok||!aR.ok) throw new Error('HTTP error');
-    const [uT,vT,aT] = await Promise.all([uR.text(),vR.text(),aR.text()]);
-    ouraData.uni=parseCSV(uT); ouraData.valmius=parseCSV(vT); ouraData.aktiivisuus=parseCSV(aT);
-    ouraData.status='ok';
-  } catch(e) { ouraData.status='error'; ouraData.error=e.message; }
+async function fetchGistData(){
+  try{
+    const cache='?t='+Math.floor(Date.now()/60000);
+    const [uR,vR,aR]=await Promise.all([fetch(GIST_FILES.uni+cache),fetch(GIST_FILES.valmius+cache),fetch(GIST_FILES.aktiivisuus+cache)]);
+    if(!uR.ok||!vR.ok||!aR.ok) throw new Error('HTTP error');
+    const [uT,vT,aT]=await Promise.all([uR.text(),vR.text(),aR.text()]);
+    ouraData.uni=parseCSV(uT);ouraData.valmius=parseCSV(vT);ouraData.aktiivisuus=parseCSV(aT);ouraData.status='ok';
+  }catch(e){ouraData.status='error';ouraData.error=e.message;}
   render();
 }
 
-// ── Oura helpers ──────────────────────────────────────────────────────
-function avg(arr,key){ const v=arr.map(r=>parseFloat(r[key])).filter(v=>!isNaN(v)); return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null; }
+// ── Oura ──────────────────────────────────────────────────────────────
+function avg(arr,key){const v=arr.map(r=>parseFloat(r[key])).filter(v=>!isNaN(v));return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null;}
 function trendDir(arr,key){
   if(arr.length<6) return 'flat';
   const r=arr.slice(-3).map(x=>parseFloat(x[key])).filter(v=>!isNaN(v));
   const p=arr.slice(-6,-3).map(x=>parseFloat(x[key])).filter(v=>!isNaN(v));
   if(!r.length||!p.length) return 'flat';
-  const rA=r.reduce((a,b)=>a+b,0)/r.length, pA=p.reduce((a,b)=>a+b,0)/p.length;
+  const rA=r.reduce((a,b)=>a+b,0)/r.length,pA=p.reduce((a,b)=>a+b,0)/p.length;
   return rA>pA+2?'up':rA<pA-2?'down':'flat';
 }
 function getOuraSummary(){
   if(ouraData.status!=='ok') return null;
-  const u=(ouraData.uni||[]).slice(-7), v=(ouraData.valmius||[]).slice(-7), a=(ouraData.aktiivisuus||[]).slice(-7);
-  return { avgUniScore:avg(u,'pistemäärä'), avgUniMin:avg(u,'kokonaisaika_min'), avgValmius:avg(v,'pistemäärä'),
-    avgAskeleet:avg(a,'askeleet'), avgAktScore:avg(a,'pistemäärä'),
-    uniTrend:trendDir(u,'pistemäärä'), valmiusTrend:trendDir(v,'pistemäärä'), aktTrend:trendDir(a,'pistemäärä'),
-    days:u.length, latestDate:u.length?u[u.length-1].paiva:null };
+  const u=(ouraData.uni||[]).slice(-7),v=(ouraData.valmius||[]).slice(-7),a=(ouraData.aktiivisuus||[]).slice(-7);
+  return{avgUniScore:avg(u,'tehokkuus'),avgUniMin:avg(u,'kokonaisaika_min'),avgValmius:avg(v,'pistemäärä'),
+    avgAskeleet:avg(a,'askeleet'),avgAktScore:avg(a,'pistemäärä'),
+    uniTrend:trendDir(u,'tehokkuus'),valmiusTrend:trendDir(v,'pistemäärä'),aktTrend:trendDir(a,'pistemäärä'),
+    days:u.length,latestDate:u.length?u[u.length-1].paiva:null};
 }
-function trendArrow(tr){ return tr==='up'?'<span class="trend-up">↑</span>':tr==='down'?'<span class="trend-down">↓</span>':'<span class="trend-flat">→</span>'; }
-
+function trendArrow(tr){return tr==='up'?'<span class="trend-up">↑</span>':tr==='down'?'<span class="trend-down">↓</span>':'<span class="trend-flat">→</span>';}
 function buildOuraHint(){
-  const s=getOuraSummary(), tx=t();
+  const s=getOuraSummary(),tx=t();
   if(!s) return tx.ouraHintFallback;
   const parts=[];
   if(s.avgUniScore!==null) parts.push(`${tx.ouraLabels.uni.toLowerCase()} ${s.avgUniScore}/100`);
@@ -298,21 +371,18 @@ function buildOuraHint(){
   if(s.avgAskeleet!==null) parts.push(`${tx.ouraLabels.askeleet.toLowerCase()} ${Math.round(s.avgAskeleet/1000*10)/10}k/vrk`);
   return `${tx.ouraHintPrefix} ${parts.join(', ')}. ${tx.ouraHintSuffix}`;
 }
-
 function buildOuraPromptContext(){
-  const s=getOuraSummary();
-  if(!s) return '';
+  const s=getOuraSummary();if(!s) return '';
   const lines=[`Oura data (last ${s.days} days, latest ${s.latestDate||''})`];
-  if(s.avgUniScore!==null) lines.push(`  Sleep score: ${s.avgUniScore}/100 (trend: ${s.uniTrend})`);
+  if(s.avgUniScore!==null) lines.push(`  Sleep efficiency: ${s.avgUniScore}/100 (trend: ${s.uniTrend})`);
   if(s.avgUniMin!==null) lines.push(`  Sleep duration: ${Math.round(s.avgUniMin/60*10)/10} h avg`);
   if(s.avgValmius!==null) lines.push(`  Readiness: ${s.avgValmius}/100 (trend: ${s.valmiusTrend})`);
   if(s.avgAskeleet!==null) lines.push(`  Steps: ${Math.round(s.avgAskeleet).toLocaleString()} avg/day`);
   if(s.avgAktScore!==null) lines.push(`  Activity score: ${s.avgAktScore}/100 (trend: ${s.aktTrend})`);
   return lines.join('\n');
 }
-
 function renderOuraCard(){
-  const s=getOuraSummary(), tx=t();
+  const s=getOuraSummary(),tx=t();
   if(ouraData.status==='loading') return `<div class="oura-card"><div class="oura-header"><span class="oura-title">${tx.ouraTitle}</span></div><div class="oura-loading">${tx.ouraLoading}</div></div>`;
   if(ouraData.status==='error') return `<div class="oura-card"><div class="oura-header"><span class="oura-title">${tx.ouraTitle}</span></div><div class="oura-error">${tx.ouraError}</div></div>`;
   if(!s) return '';
@@ -326,17 +396,84 @@ function renderOuraCard(){
   </div>`;
 }
 
-// ── Lang toggle ───────────────────────────────────────────────────────
-function setLang(l){ lang=l; render(); }
-function langToggleHTML(){ return `<div class="lang-toggle"><button class="lang-btn ${lang==='fi'?'active':''}" onclick="setLang('fi')">FI</button><button class="lang-btn ${lang==='en'?'active':''}" onclick="setLang('en')">EN</button></div>`; }
+// ── 30-day list view ──────────────────────────────────────────────────
+function renderListView(){
+  const tx=t(), items=loadList();
+  const readyItems=items.filter((_,i)=>getDaysOld(items[i].date)>=30);
+  const rows=items.map((item,i)=>{
+    const d=getDaysOld(item.date);
+    const ready=d>=30;
+    return `<div class="list-item">
+      <div class="list-item-name">${item.name}</div>
+      <div class="list-item-days ${ready?'days-ready':'days-wait'}">${ready?tx.listDaysReady(d):tx.listDaysWait(d)}</div>
+      <div class="list-item-remove" onclick="removeItem(${i});renderListView()">×</div>
+    </div>`;
+  }).join('');
+  app.innerHTML=`
+    ${langToggleHTML()}
+    <div class="list-card">
+      <div class="list-title">🛒 ${tx.listTitle}</div>
+      ${items.length===0?`<div class="list-empty">${tx.listEmpty}</div>`:rows}
+      <div class="list-add-row">
+        <input class="list-input" id="list-input" placeholder="${tx.listAddPlaceholder}" onkeydown="if(event.key==='Enter')addItem()">
+        <button class="list-add-btn" onclick="addItem()">${tx.listAddBtn}</button>
+      </div>
+    </div>
+    <button class="btn" onclick="view='home';render()">${tx.listBackBtn}</button>`;
+}
 
-// ── Helpers ───────────────────────────────────────────────────────────
-function isLastSunday(){ const n=new Date(),last=new Date(n.getFullYear(),n.getMonth()+1,0).getDate(); return n.getDay()===0&&n.getDate()>last-7; }
-function render(){ if(!mode) renderHome(); else if(step<questions.length) renderQ(); else renderSummary(); }
+function addItem(){
+  const inp=document.getElementById('list-input');
+  if(!inp||!inp.value.trim()) return;
+  addListItem(inp.value);
+  renderListView();
+}
+function removeItem(idx){
+  removeListItem(idx);
+}
+
+// ── Shopping question renderer ────────────────────────────────────────
+function renderShoppingQuestion(q){
+  const tx=t(), items=loadList(), readyItems=getReadyItems();
+  let html='';
+  if(readyItems.length>0){
+    html+=`<div class="list-review-card">
+      <div class="list-review-title">⏰ ${tx.listReviewTitle}</div>
+      <div style="font-size:13px;color:#e67700;margin-bottom:0.5rem">${tx.listReviewReady(readyItems.length)}</div>
+      ${readyItems.map(i=>`<div class="list-review-item">• ${i.name} (${getDaysOld(i.date)} ${lang==='fi'?'pv':'days'})</div>`).join('')}
+    </div>`;
+  }
+  if(items.length===0){
+    html+=`<div style="font-size:13px;color:#bbb;font-style:italic;margin-bottom:1rem">${tx.listEmpty}</div>`;
+  }
+  html+=`<div class="list-add-row" style="margin-bottom:0.75rem">
+    <input class="list-input" id="shop-input" placeholder="${tx.listAddPlaceholder}" onkeydown="if(event.key==='Enter')addShopItem()">
+    <button class="list-add-btn" onclick="addShopItem()">${tx.listAddBtn}</button>
+  </div>`;
+  html+=`<textarea id="ans" placeholder="${tx.placeholder}" style="min-height:80px;">${answers[q.id]||''}</textarea>`;
+  return html;
+}
+function addShopItem(){
+  const inp=document.getElementById('shop-input');
+  if(!inp||!inp.value.trim()) return;
+  addListItem(inp.value);
+  inp.value='';
+}
+
+// ── Lang & helpers ────────────────────────────────────────────────────
+function setLang(l){lang=l;render();}
+function langToggleHTML(){return `<div class="lang-toggle"><button class="lang-btn ${lang==='fi'?'active':''}" onclick="setLang('fi')">FI</button><button class="lang-btn ${lang==='en'?'active':''}" onclick="setLang('en')">EN</button></div>`;}
+function isLastSunday(){const n=new Date(),last=new Date(n.getFullYear(),n.getMonth()+1,0).getDate();return n.getDay()===0&&n.getDate()>last-7;}
+function render(){
+  if(view==='list'){renderListView();return;}
+  if(!mode) renderHome();
+  else if(step<questions.length) renderQ();
+  else renderSummary();
+}
 
 // ── Home ──────────────────────────────────────────────────────────────
 function renderHome(){
-  const ml=isLastSunday(), tx=t();
+  const ml=isLastSunday(),tx=t(),ready=getReadyItems().length;
   app.innerHTML=`
     ${langToggleHTML()}
     <div class="card">
@@ -347,23 +484,26 @@ function renderHome(){
     ${renderOuraCard()}
     <div class="card">
       <button class="btn btn-primary" onclick="start('weekly')">${tx.btnWeekly}</button>
-      <button class="btn" style="margin-bottom:0" onclick="start('monthly')">${tx.btnMonthly} <span style="font-size:12px;color:#888">${tx.btnMonthlyNote}</span></button>
+      <button class="btn" onclick="start('monthly')">${tx.btnMonthly} <span style="font-size:12px;color:#888">${tx.btnMonthlyNote}</span></button>
+      <button class="btn" style="margin-bottom:0;position:relative" onclick="view='list';render()">${tx.btnList}${ready>0?`<span style="position:absolute;right:1rem;top:50%;transform:translateY(-50%);background:#e67700;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px">${ready} valmis</span>`:''}
+      </button>
       ${ml?`<div style="font-size:12px;color:#1a7f37;margin-top:0.75rem;font-weight:500">${tx.lastSundayNote}</div>`:''}
     </div>
     <div class="info-box">${tx.infoBox}</div>`;
 }
 
 function start(type){
-  mode=type; step=0; answers={};
+  mode=type;step=0;answers={};view='review';
   questions=type==='monthly'?[...WQ[lang],...MQ[lang]]:[...WQ[lang]];
   render();
 }
 
-function getTextValue(){ const ta=document.getElementById('ans'); return ta?ta.value.trim():''; }
+function getTextValue(){const ta=document.getElementById('ans');return ta?ta.value.trim():'';}
 function updateNextBtn(){
-  const btn=document.getElementById('next-btn'); if(!btn) return;
+  const btn=document.getElementById('next-btn');if(!btn)return;
   const q=questions[step];
-  btn.disabled=q.type==='text'?getTextValue().length===0:(answers[q.id]===undefined||answers[q.id]==='');
+  if(q.type==='text'||q.type==='shopping') btn.disabled=getTextValue().length===0;
+  else btn.disabled=answers[q.id]===undefined||answers[q.id]==='';
 }
 
 // ── Question ──────────────────────────────────────────────────────────
@@ -378,10 +518,15 @@ function renderQ(){
     input=`<textarea id="ans" placeholder="${tx.placeholder}">${answers[q.id]||''}</textarea>`;
   } else if(q.type==='score'){
     input=`<div class="score-row">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button class="score-btn ${answers[q.id]==n?'selected':''}" onclick="pick(${n},'${q.id}')">${n}</button>`).join('')}</div>`;
+  } else if(q.type==='shopping'){
+    input=renderShoppingQuestion(q);
   } else {
     input=`<div class="score-row">${tx.ynOptions.map(v=>`<button class="score-btn ${answers[q.id]===v?'selected':''}" onclick="pick('${v}','${q.id}')">${v}</button>`).join('')}</div>`;
+    if(q.type==='yntext'){
+      input+=`<div class="optional-label">${tx.optionalNotesPlaceholder}</div><textarea class="optional-textarea" id="yntext-notes" placeholder="${tx.optionalNotesPlaceholder}">${answers[q.id+'_notes']||''}</textarea>`;
+    }
     if(q.familyNotes){
-      input+=`<textarea id="family-notes" placeholder="${tx.familyNotesPlaceholder}" style="margin-top:0.75rem;min-height:80px;">${answers['family_notes']||''}</textarea>`;
+      input+=`<div class="optional-label">${tx.familyNotesPlaceholder}</div><textarea class="optional-textarea" id="family-notes" placeholder="${tx.familyNotesPlaceholder}">${answers['family_notes']||''}</textarea>`;
     }
   }
   const isLast=step===total-1;
@@ -393,29 +538,27 @@ function renderQ(){
       ${badge}
       <div class="q-num">${tx.questionOf(step+1,total)}</div>
       <div class="q-text">${q.text}</div>
-      <div class="q-hint">${hint}</div>
+      ${hint?`<div class="q-hint">${hint}</div>`:''}
       ${input}
     </div>
     <div class="nav-row">
       ${step>0?`<button class="btn btn-sm" onclick="back()">${tx.btnBack}</button>`:''}
-      <button class="btn btn-sm btn-primary" id="next-btn" onclick="next()" ${!hasAnswer&&q.type!=='text'?'disabled':''}>${isLast?tx.btnFinish:tx.btnNext}</button>
+      <button class="btn btn-sm btn-primary" id="next-btn" onclick="next()" ${!hasAnswer&&q.type!=='text'&&q.type!=='shopping'?'disabled':''}>${isLast?tx.btnFinish:tx.btnNext}</button>
     </div>`;
-  if(q.type==='text'){
+  if(q.type==='text'||q.type==='shopping'){
     const ta=document.getElementById('ans');
-    if(ta){ta.addEventListener('input',updateNextBtn);ta.addEventListener('keyup',updateNextBtn);updateNextBtn();ta.focus();}
+    if(ta){ta.addEventListener('input',updateNextBtn);ta.addEventListener('keyup',updateNextBtn);updateNextBtn();if(q.type==='text')ta.focus();}
   }
 }
 
 function pick(val,id){answers[id]=val;render();}
 function next(){
   const q=questions[step];
-  if(q.type==='text'){const v=getTextValue();if(!v)return;answers[q.id]=v;}
+  if(q.type==='text'||q.type==='shopping'){const v=getTextValue();if(!v)return;answers[q.id]=v;}
   else{
     if(!answers[q.id])return;
-    if(q.familyNotes){
-      const fn=document.getElementById('family-notes');
-      if(fn) answers['family_notes']=fn.value.trim();
-    }
+    if(q.type==='yntext'){const yn=document.getElementById('yntext-notes');if(yn)answers[q.id+'_notes']=yn.value.trim();}
+    if(q.familyNotes){const fn=document.getElementById('family-notes');if(fn)answers['family_notes']=fn.value.trim();}
   }
   step++;render();
 }
@@ -423,7 +566,7 @@ function back(){if(step>0){step--;render();}}
 
 // ── Prompt ────────────────────────────────────────────────────────────
 function buildPrompt(){
-  const isM=mode==='monthly', ws=answers['week_score']||'—', tx=t();
+  const isM=mode==='monthly',ws=answers['week_score']||'—',tx=t();
   const dn=tx.domainNames;
   const domains=isM?[{name:dn.health,score:answers['d_health']},{name:dn.family,score:answers['d_family']},{name:dn.work,score:answers['d_work']},{name:dn.finances,score:answers['d_finances']}]:null;
   let p=`${tx.promptHeader(isM)}\n\n${tx.promptWeekScore(ws)}\n\n`;
@@ -431,11 +574,24 @@ function buildPrompt(){
   const ouraCtx=buildOuraPromptContext();
   if(ouraCtx){p+=`${tx.promptOuraHeader}\n${ouraCtx}\n\n`;}
   const pi=tx.promptItems;
+  const readyItems=getReadyItems();
+  const shoppingCtx=readyItems.length>0?`${answers['shopping']||'—'}\n30-day list ready to buy: ${readyItems.map(i=>i.name).join(', ')}`:answers['shopping']||'—';
   const items=[
-    {q:pi.completed,a:answers['completed']},{q:pi.three_rule,a:answers['three_rule']},
-    {q:pi.health,a:answers['health']},{q:pi.family,a:answers['family']+(answers['family_notes']?'\n'+answers['family_notes']:'')},
-    {q:pi.time_waste,a:answers['time_waste']},{q:pi.one_thing,a:answers['one_thing']},
-    ...(isM?[{q:pi.best_decision,a:answers['best_decision']},{q:pi.broken_rule,a:answers['broken_rule']},{q:pi.projects_ok,a:answers['projects_ok']},{q:pi.month_intention,a:answers['month_intention']}]:[])
+    {q:pi.completed,a:answers['completed']},
+    {q:pi.focus,a:(answers['focus']||'—')+(answers['focus_notes']?'\n'+answers['focus_notes']:'')},
+    {q:pi.health,a:answers['health']},
+    {q:pi.family,a:(answers['family']||'—')+(answers['family_notes']?'\n'+answers['family_notes']:'')},
+    {q:pi.energy,a:answers['energy']},
+    {q:pi.shopping,a:shoppingCtx},
+    {q:pi.one_thing,a:answers['one_thing']},
+    ...(isM?[
+      {q:pi.best_decision,a:answers['best_decision']},
+      {q:pi.impact,a:answers['impact']},
+      {q:pi.learning,a:answers['learning']},
+      {q:pi.broken_rule,a:answers['broken_rule']},
+      {q:pi.projects_ok,a:answers['projects_ok']},
+      {q:pi.month_intention,a:answers['month_intention']}
+    ]:[])
   ];
   items.forEach(i=>{p+=`${i.q.toUpperCase()}:\n${i.a||'—'}\n\n`;});
   p+=tx.promptInstructions;
@@ -444,17 +600,28 @@ function buildPrompt(){
 
 // ── Summary ───────────────────────────────────────────────────────────
 function renderSummary(){
-  const isM=mode==='monthly', ws=answers['week_score']||'—', tx=t();
+  const isM=mode==='monthly',ws=answers['week_score']||'—',tx=t();
   builtPrompt=buildPrompt();
   const dn=tx.domainNames;
   const domains=isM?[{name:dn.health,score:answers['d_health'],color:'#3b6d11'},{name:dn.family,score:answers['d_family'],color:'#854f0b'},{name:dn.work,score:answers['d_work'],color:'#185fa5'},{name:dn.finances,score:answers['d_finances'],color:'#0f6e56'}]:null;
   const domainGrid=isM&&domains?`<div class="card"><div class="domain-grid">${domains.map(d=>`<div class="domain-card"><div class="domain-name" style="color:${d.color}">${d.name}</div><div class="domain-score">${d.score}/10</div></div>`).join('')}</div></div>`:'';
   const si=tx.summaryItems;
   const items=[
-    {q:si.completed,a:answers['completed']},{q:si.three_rule,a:answers['three_rule']},
-    {q:si.health,a:answers['health']},{q:si.family,a:(answers['family']||'—')+(answers['family_notes']?' — '+answers['family_notes']:'')},
-    {q:si.time_waste,a:answers['time_waste']},{q:si.one_thing,a:answers['one_thing']},
-    ...(isM?[{q:si.best_decision,a:answers['best_decision']},{q:si.broken_rule,a:answers['broken_rule']},{q:si.projects_ok,a:answers['projects_ok']},{q:si.month_intention,a:answers['month_intention']}]:[])
+    {q:si.completed,a:answers['completed']},
+    {q:si.focus,a:answers['focus']},
+    {q:si.health,a:answers['health']},
+    {q:si.family,a:(answers['family']||'—')+(answers['family_notes']?' — '+answers['family_notes']:'')},
+    {q:si.energy,a:answers['energy']},
+    {q:si.shopping,a:answers['shopping']},
+    {q:si.one_thing,a:answers['one_thing']},
+    ...(isM?[
+      {q:si.best_decision,a:answers['best_decision']},
+      {q:si.impact,a:answers['impact']},
+      {q:si.learning,a:answers['learning']},
+      {q:si.broken_rule,a:answers['broken_rule']},
+      {q:si.projects_ok,a:answers['projects_ok']},
+      {q:si.month_intention,a:answers['month_intention']}
+    ]:[])
   ];
   app.innerHTML=`
     ${langToggleHTML()}
@@ -487,7 +654,7 @@ function copyPrompt(){
   });
 }
 
-function reset(){mode=null;step=0;answers={};questions=[];builtPrompt='';render();}
+function reset(){mode=null;step=0;answers={};questions=[];builtPrompt='';view='home';render();}
 
 render();
 fetchGistData();
